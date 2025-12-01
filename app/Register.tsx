@@ -15,6 +15,7 @@ import {
     TextInput,
     TouchableOpacity,
     View,
+    Modal
 } from 'react-native';
 
 const { width } = Dimensions.get('window');
@@ -29,8 +30,60 @@ const AuthScreen = () => {
     username: '',
     email: '',
     password: '',
+    Unicode: '',
     Mobile: '',
   });
+
+    const MessageModal = ({ 
+      visible, 
+      onClose, 
+      title, 
+      message, 
+      type 
+    }: { 
+      visible: boolean; 
+      onClose: () => void; 
+      title: string; 
+      message: string; 
+      type: 'success' | 'error' | 'info' 
+    }) => (
+      <Modal
+        visible={visible}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={onClose}
+      >
+        <View style={styles.messageOverlay}>
+          <View style={[
+            styles.messageContainer,
+            type === 'success' && styles.messageSuccess,
+            type === 'error' && styles.messageError,
+            type === 'info' && styles.messageInfo
+          ]}>
+            <Text style={styles.messageTitle}>{title}</Text>
+            <Text style={styles.messageText}>{message}</Text>
+            <TouchableOpacity 
+              style={styles.messageButton}
+              onPress={onClose}
+            >
+              <Text style={styles.messageButtonText}>OK</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+    );
+  
+    const [messageVisible, setMessageVisible] = useState(false);
+    const [messageData, setMessageData] = useState<{
+      title: string;
+      message: string;
+      type: 'success' | 'error' | 'info';
+    }>({ title: '', message: '', type: 'info' });
+  
+    const showMessage = (title: string, message: string, type: 'success' | 'error' | 'info' = 'info') => {
+      setMessageData({ title, message, type });
+      setMessageVisible(true);
+    };
 
   const [loading, setLoading] = useState(false);
 
@@ -71,7 +124,7 @@ const AuthScreen = () => {
       }),
     ]).start(() => {
       setIsLogin((prev) => !prev);
-      setForm({ username: '', email: '', password: '', Mobile: '' });
+      setForm({ username: '', email: '', password: '', Mobile: '', Unicode: '' });
       
       Animated.parallel([
         Animated.timing(fadeAnim, {
@@ -92,23 +145,23 @@ const AuthScreen = () => {
   const validateForm = () => {
     if (isLogin) {
       if (!form.email || !form.password) {
-        Alert.alert('Error', 'Please fill in all fields');
+        showMessage('Error', 'Please fill in all fields', 'error');
         return false;
       }
     } else {
       if (!form.username || !form.email || !form.password || !form.Mobile) {
-        Alert.alert('Error', 'Please fill in all fields');
+        showMessage('Error', 'Please fill in all fields');
         return false;
       }
       
       if (form.password.length < 6) {
-        Alert.alert('Error', 'Password should be at least 6 characters');
+        showMessage('Error', 'Password should be at least 6 characters', 'error');
         return false;
       }
 
       const mobileRegex = /^[6-9]\d{9}$/;
       if (!mobileRegex.test(form.Mobile)) {
-        Alert.alert('Error', 'Please enter a valid 10-digit mobile number');
+        showMessage('Error', 'Please enter a valid 10-digit mobile number', 'error');
         return false;
       }
     }
@@ -118,12 +171,12 @@ const AuthScreen = () => {
   const handleLogin = async () => {
     try {
       setLoading(true);
-      const response = await fetch('https://backend-hbwp.onrender.com/Login', {
+      const response = await fetch('https://clartalk.online/Login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
           email: form.email, 
-          password: form.password 
+          Mobile: form.Mobile 
         }),
       });
 
@@ -133,10 +186,10 @@ const AuthScreen = () => {
         await AsyncStorage.setItem('Token', data.token);
         router.replace('/(tabs)');
       } else {
-        Alert.alert('Error', data.message || 'Login failed');
+        showMessage('Error', data.message || 'Login failed', 'error');
       }
     } catch (error) {
-      Alert.alert('Error', 'Something went wrong. Please try again.');
+      showMessage('Error', 'something went Wrong', 'error');
       console.error('Login error:', error);
     } finally {
       setLoading(false);
@@ -146,13 +199,14 @@ const AuthScreen = () => {
   const handleRegister = async () => {
     try {
       setLoading(true);
-      const response = await fetch('https://backend-hbwp.onrender.com/Register', {
+      const response = await fetch('https://clartalk.online/Register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
           username: form.username,
           email: form.email, 
           password: form.password,
+          Unicode: form.Unicode,
           Mobile: form.Mobile,
         }),
       });
@@ -163,12 +217,12 @@ const AuthScreen = () => {
         await AsyncStorage.setItem('Token', data.token);
         router.replace('/(tabs)');
       } else {
-        Alert.alert('Error', data.message || 'Registration failed');
+        showMessage('Error', data.message || 'Registration failed', 'error');
       }
     } catch (error) {
-      Alert.alert('Error', 'Something went wrong. Please try again.');
+      showMessage('Error', 'Something Went Wrong', 'error');
       console.error('Registration error:', error);
-    } finally {
+    }                                                                                                                                                                                      finally {
       setLoading(false);
     }
   };
@@ -200,12 +254,22 @@ const AuthScreen = () => {
           transform: [{ translateY: slideAnim }]
         }
       ]}>
-        <ScrollView 
-    style={styles.scrollView}
-    contentContainerStyle={styles.scrollViewContent}
-    showsVerticalScrollIndicator={false}
-    keyboardShouldPersistTaps="handled"
-  >
+
+      <MessageModal 
+        visible={messageVisible}
+        onClose={() => setMessageVisible(false)}
+        title={messageData.title}
+        message={messageData.message}
+        type={messageData.type}
+      />
+
+
+      <ScrollView 
+          style={styles.scrollView}
+          contentContainerStyle={styles.scrollViewContent}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+        >
         <View style={styles.header}>
           <Text style={styles.title}>{isLogin ? 'Welcome Back' : 'Join FitStreak'}</Text>
           <Text style={styles.subtitle}>
@@ -243,7 +307,7 @@ const AuthScreen = () => {
             />
           </View>
 
-          {!isLogin && (
+          
             <View style={styles.inputContainer}>
               <Text style={styles.inputLabel}>Mobile</Text>
               <TextInput
@@ -256,8 +320,23 @@ const AuthScreen = () => {
                 editable={!loading}
               />
             </View>
+
+          {!isLogin && (
+          <View style={styles.inputContainer}>
+            <Text style={styles.inputLabel}>Unicode</Text>
+            <TextInput
+              placeholder="Enter The GYM code"
+              placeholderTextColor="#666"
+              style={styles.input}
+              value={form.Unicode}
+              onChangeText={(text) => handleChange('Unicode', text)}
+              autoCapitalize="none"
+              editable={!loading}
+            />
+          </View>
           )}
 
+          {!isLogin && (
           <View style={styles.inputContainer}>
             <Text style={styles.inputLabel}>Password</Text>
             <TextInput
@@ -271,6 +350,7 @@ const AuthScreen = () => {
               editable={!loading}
             />
           </View>
+          )}
 
           <TouchableOpacity 
             style={[styles.button, loading && styles.disabledButton]} 
@@ -448,5 +528,58 @@ const styles = StyleSheet.create({
   scrollViewContent: {
     flexGrow: 1,
     justifyContent: 'center',
+  },
+  messageOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.7)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  messageContainer: {
+    backgroundColor: '#121212',
+    borderRadius: 16,
+    padding: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
+    width: '100%',
+    maxWidth: 300,
+  },
+  messageSuccess: {
+    borderLeftWidth: 4,
+    borderLeftColor: '#00ff9d',
+  },
+  messageError: {
+    borderLeftWidth: 4,
+    borderLeftColor: '#ff3b30',
+  },
+  messageInfo: {
+    borderLeftWidth: 4,
+    borderLeftColor: '#00f5ff',
+  },
+  messageTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#ffffff',
+    marginBottom: 10,
+    textAlign: 'center',
+  },
+  messageText: {
+    fontSize: 14,
+    color: '#f0f0f0',
+    lineHeight: 20,
+    textAlign: 'center',
+    marginBottom: 20,
+  },
+  messageButton: {
+    backgroundColor: '#ff7b25',
+    padding: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  messageButtonText: {
+    color: '#ffffff',
+    fontSize: 16,
+    fontWeight: '600',
   },
 });
